@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hamster Kombat Upgrade Strategy</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #output {
+            margin-top: 20px;
+        }
+        .card {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .card h3 {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hamster Kombat Upgrade Strategy</h1>
+    <button onclick="pasteClipboard()">Paste Data from Clipboard</button>
+    <div id="output"></div>
+
+    <script>
+        function pasteClipboard() {
+            navigator.clipboard.readText().then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    const upgrades = data.upgradesForBuy;
+
+                    // Filter out upgrades that are expired, not available, or have a price or profit of 0
+                    const filteredUpgrades = upgrades.filter(upgrade =>
+                        upgrade.isAvailable &&
+                        !upgrade.isExpired &&
+                        upgrade.price > 0 &&
+                        upgrade.profitPerHourDelta > 0
+                    );
+
+                    // Calculate ROI for each upgrade
+                    filteredUpgrades.forEach(upgrade => {
+                        upgrade.ROI = upgrade.profitPerHourDelta / upgrade.price;
+                    });
+
+                    // Sort upgrades by ROI in descending order
+                    const sortedUpgrades = filteredUpgrades.sort((a, b) => b.ROI - a.ROI);
+
+                    // Display the sorted upgrades
+                    displayUpgrades(sortedUpgrades);
+                } catch (e) {
+                    alert("Failed to parse data from clipboard. Please ensure it is in the correct JSON format.");
+                }
+            }).catch(err => {
+                alert("Failed to read from clipboard: " + err);
+            });
+        }
+
+        function displayUpgrades(upgrades) {
+            const output = document.getElementById('output');
+            output.innerHTML = ''; // Clear previous content
+
+            upgrades.forEach(upgrade => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <h3>${upgrade.name}</h3>
+                    <p>Price: ${upgrade.price}</p>
+                    <p>Current Profit Per Hour: ${upgrade.currentProfitPerHour}</p>
+                    <p>Profit Per Hour Increase: ${upgrade.profitPerHourDelta}</p>
+                    <p>ROI: ${upgrade.ROI.toFixed(6)}</p>
+                `;
+                output.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
