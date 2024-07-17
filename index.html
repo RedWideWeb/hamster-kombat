@@ -52,6 +52,12 @@
             margin-top: 20px;
             font-size: 16px;
         }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
         #scroll-to-top {
             display: none;
             position: fixed;
@@ -81,23 +87,115 @@
             font-weight: bold;
             margin-bottom: 20px;
         }
+        #fetch-status {
+            display: none;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .fetching {
+            color: darkgoldenrod;
+        }
+        .updated {
+            color: darkgreen;
+        }
+        .error {
+            color: red;
+        }
     </style>
 </head>
 <body>
     <h1>Hamster Kombat Upgrade Strategy</h1>
+
+    <label for="bearer-token">Bearer Token:</label>
+    <input type="password" id="bearer-token" style="width: 100%; padding: 10px; margin-bottom: 10px;">
+    <label for="user-agent">User-Agent:</label>
+    <input type="text" id="user-agent" style="width: 100%; padding: 10px; margin-bottom: 20px;">
+
+    <p id="fetch-status"></p>
+
     <p id="best-card-stats"></p>
     <button class="paste-button" onclick="pasteClipboard()">Paste</button>
     <select id="sort-select" class="sort-select" onchange="updateSort()">
         <option value="roi">Sort by ROI</option>
         <option value="roi_profit">Sort by ROI and Profit Increase</option>
     </select>
+
     <div id="output"></div>
+
     <div class="background" onclick="pasteClipboard()"></div>
     <button id="scroll-to-top" onclick="scrollToTop()"></button>
 
     <script>
         let upgrades = [];
         let filteredUpgrades = [];
+
+        function showStatusMessage(message, className) {
+            const statusElement = document.getElementById('fetch-status');
+            statusElement.textContent = message;
+            statusElement.className = className;
+            statusElement.style.display = 'block';
+
+            if (className !== 'fetching') {
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        async function fetchUpgrades() {
+            const url = 'https://api.hamsterkombatgame.io/clicker/upgrades-for-buy';
+            const bearerToken = localStorage.getItem('bearerToken');
+            const userAgent = localStorage.getItem('userAgent');
+
+            if (!bearerToken || !userAgent) {
+                console.log('Please provide both Bearer Token and User-Agent.');
+                return;
+            }
+
+            const headers = new Headers({
+                'Authorization': `Bearer ${bearerToken}`,
+                'Sec-Fetch-Site': 'same-site',
+                'Accept-Language': 'ru',
+                'Sec-Fetch-Mode': 'cors',
+                'Accept': '*/*',
+                'Origin': 'https://hamsterkombatgame.io',
+                'User-Agent': userAgent,
+                'Referer': 'https://hamsterkombatgame.io/',
+                'Connection': 'keep-alive',
+                'Sec-Fetch-Dest': 'empty'
+            });
+
+            const options = {
+                method: 'POST',
+                headers: headers,
+                mode: 'cors',
+                cache: 'no-cache'
+            };
+
+            try {
+                showStatusMessage('Fetching...', 'fetching');
+                const response = await fetch(url, options);
+                if (response.ok) {
+                    const data = await response.json();
+                    upgrades = data.upgradesForBuy;
+                    // Calculate ROI for each upgrade
+                    upgrades.forEach(upgrade => {
+                        upgrade.ROI = upgrade.profitPerHourDelta / upgrade.price;
+                    });
+                    // Save all cards to localStorage
+                    localStorage.setItem('upgrades', JSON.stringify(upgrades));
+                    // Filter upgrades and update the display
+                    filterAndDisplayUpgrades();
+                    showStatusMessage('Updated', 'updated');
+                } else {
+                    showStatusMessage('Error', 'error');
+                    console.error('HTTP error', response.status);
+                }
+            } catch (error) {
+                showStatusMessage('Error', 'error');
+                console.error('Fetch error:', error);
+            }
+        }
 
         function pasteClipboard() {
             navigator.clipboard.readText().then(text => {
@@ -128,8 +226,7 @@
                 upgrade.isAvailable &&
                 !upgrade.isExpired &&
                 upgrade.price > 0 &&
-                upgrade.profitPerHourDelta > 0 && 
-                (!upgrade.totalCooldownSeconds || upgrade.totalCooldownSeconds === 0)
+                upgrade.profitPerHourDelta > 0
             );
 
             // Display best card by ROI from all available cards
@@ -228,19 +325,45 @@
             }
         };
 
-        // Load upgrades from localStorage on page load
+        window.onfocus = function() {
+            fetchUpgrades();
+        };
+
+        // Load upgrades and sort option from localStorage on page load
         document.addEventListener('DOMContentLoaded', (event) => {
             const savedUpgrades = localStorage.getItem('upgrades');
             const savedSortOption = localStorage.getItem('sortOption');
+            const savedBearerToken = localStorage.getItem('bearerToken');
+            const savedUserAgent = localStorage.getItem('userAgent');
+
+            if (savedBearerToken) {
+                document.getElementById('bearer-token').value = savedBearerToken;
+            }
+
+            if (savedUserAgent) {
+                document.getElementById('user-agent').value = savedUserAgent;
+            }
+
             if (savedUpgrades) {
                 upgrades = JSON.parse(savedUpgrades);
-                clipboardPasted = true;
                 filterAndDisplayUpgrades();
             }
+
             if (savedSortOption) {
                 document.getElementById('sort-select').value = savedSortOption;
             }
+
             updateSort();
+            fetchUpgrades();
+        });
+
+        // Save Bearer Token and User-Agent to localStorage on input change
+        document.getElementById('bearer-token').addEventListener('input', function() {
+            localStorage.setItem('bearerToken', this.value);
+        });
+
+        document.getElementById('user-agent').addEventListener('input', function() {
+            localStorage.setItem('userAgent', this.value);
         });
     </script>
 </body>
