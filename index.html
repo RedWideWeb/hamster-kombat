@@ -103,7 +103,8 @@
                         upgrade.isAvailable &&
                         !upgrade.isExpired &&
                         upgrade.price > 0 &&
-                        upgrade.profitPerHourDelta > 0
+                        upgrade.profitPerHourDelta > 0 && 
+                        (!upgrade.totalCooldownSeconds || upgrade.totalCooldownSeconds === 0)
                     );
 
                     // Calculate ROI for each upgrade
