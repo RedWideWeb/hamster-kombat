@@ -76,10 +76,16 @@
         #scroll-to-top::before {
             content: '⌃';
         }
+        #best-card-stats {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Hamster Kombat Upgrade Strategy</h1>
+    <p id="best-card-stats"></p>
     <button class="paste-button" onclick="pasteClipboard()">Paste</button>
     <select id="sort-select" class="sort-select" onchange="updateSort()">
         <option value="roi">Sort by ROI</option>
@@ -91,6 +97,7 @@
 
     <script>
         let upgrades = [];
+        let filteredUpgrades = [];
 
         function pasteClipboard() {
             navigator.clipboard.readText().then(text => {
@@ -98,25 +105,16 @@
                     const data = JSON.parse(text);
                     upgrades = data.upgradesForBuy;
 
-                    // Filter out upgrades that are expired, not available, or have a price or profit of 0
-                    upgrades = upgrades.filter(upgrade =>
-                        upgrade.isAvailable &&
-                        !upgrade.isExpired &&
-                        upgrade.price > 0 &&
-                        upgrade.profitPerHourDelta > 0 && 
-                        (!upgrade.totalCooldownSeconds || upgrade.totalCooldownSeconds === 0)
-                    );
-
                     // Calculate ROI for each upgrade
                     upgrades.forEach(upgrade => {
                         upgrade.ROI = upgrade.profitPerHourDelta / upgrade.price;
                     });
 
-                    // Save to localStorage
+                    // Save all cards to localStorage
                     localStorage.setItem('upgrades', JSON.stringify(upgrades));
 
-                    // Sort and display upgrades based on the selected option
-                    updateSort();
+                    // Filter upgrades and update the display
+                    filterAndDisplayUpgrades();
                 } catch (e) {
                     console.log("Failed to parse data from clipboard. Please ensure it is in the correct JSON format.");
                 }
@@ -125,22 +123,60 @@
             });
         }
 
+        function filterAndDisplayUpgrades() {
+            filteredUpgrades = upgrades.filter(upgrade =>
+                upgrade.isAvailable &&
+                !upgrade.isExpired &&
+                upgrade.price > 0 &&
+                upgrade.profitPerHourDelta > 0
+            );
+
+            // Display best card by ROI from all available cards
+            displayBestCardByROI();
+
+            // Sort and display upgrades based on the selected option
+            updateSort();
+        }
+
+        function displayBestCardByROI() {
+            const availableUpgrades = upgrades.filter(upgrade =>
+                upgrade.isAvailable &&
+                !upgrade.isExpired &&
+                upgrade.price > 0 &&
+                upgrade.profitPerHourDelta > 0
+            );
+
+            if (availableUpgrades.length === 0) {
+                document.getElementById('best-card-stats').innerText = 'No cards available';
+                return;
+            }
+
+            const bestCard = availableUpgrades.reduce((max, card) => card.ROI > max.ROI ? card : max, availableUpgrades[0]);
+
+            document.getElementById('best-card-stats').innerHTML = `
+                Best Card by ROI:<br><br>
+                ${bestCard.name} ${bestCard.section}<br>
+                + ${bestCard.profitPerHourDelta.toLocaleString('fr-FR')}<br>
+                ${bestCard.price.toLocaleString('fr-FR')}<br>
+                ROI: ${bestCard.ROI.toFixed(6)}`;
+        }
+
         function updateSort() {
             const sortOption = document.getElementById('sort-select').value;
             localStorage.setItem('sortOption', sortOption);
 
             // Normalization
-            const maxProfitIncrease = Math.max(...upgrades.map(upgrade => upgrade.profitPerHourDelta));
-            const maxROI = Math.max(...upgrades.map(upgrade => upgrade.ROI));
+            const maxProfitIncrease = Math.max(...filteredUpgrades.map(upgrade => upgrade.profitPerHourDelta));
+            const maxROI = Math.max(...filteredUpgrades.map(upgrade => upgrade.ROI));
 
             if (sortOption === 'roi') {
-                upgrades.sort((a, b) => b.ROI - a.ROI);
+                filteredUpgrades.sort((a, b) => b.ROI - a.ROI);
             } else if (sortOption === 'roi_profit') {
                 // Assign weights to ROI and Profit Per Hour Increase
                 const weightROI = 0.5;
                 const weightProfit = 0.5;
 
-                upgrades.forEach(upgrade => {
+                filteredUpgrades.forEach(upgrade => {
                     // Normalize values
                     const normalizedROI = upgrade.ROI / maxROI;
                     const normalizedProfit = upgrade.profitPerHourDelta / maxProfitIncrease;
@@ -149,7 +185,7 @@
                     upgrade.compositeScore = (weightROI * normalizedROI) + (weightProfit * normalizedProfit);
                 });
 
-                upgrades.sort((a, b) => b.compositeScore - a.compositeScore);
+                filteredUpgrades.sort((a, b) => b.compositeScore - a.compositeScore);
             }
 
             displayUpgrades();
@@ -159,22 +195,20 @@
             const output = document.getElementById('output');
             output.innerHTML = ''; // Clear previous content
 
-            upgrades.forEach((upgrade, index) => {
+            filteredUpgrades.forEach((upgrade, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.innerHTML = `
                     <h3>${upgrade.name}</h3>
-                    <p>Section: ${upgrade.section}</p>
-                    <p>Price: ${upgrade.price}</p>
-                    <p>Current Profit Per Hour: ${upgrade.currentProfitPerHour}</p>
-                    <p>Profit Per Hour Increase: ${upgrade.profitPerHourDelta}</p>
-                    <p>ROI: ${upgrade.ROI.toFixed(6)}</p>
+                    <p>${upgrade.section}</p>
+                    <p>+ ${upgrade.profitPerHourDelta.toLocaleString('fr-FR')}</p>
+                    <p>${upgrade.price.toLocaleString('fr-FR')}</p>
+                    <span>ROI: ${upgrade.ROI.toFixed(6)}</span>
                 `;
                 card.onclick = (event) => {
-                    upgrades.splice(index, 1); // Remove the clicked upgrade from the list
+                    upgrades.splice(upgrades.indexOf(upgrade), 1); // Remove the clicked upgrade from the list
                     localStorage.setItem('upgrades', JSON.stringify(upgrades)); // Update localStorage
-                    updateSort();
-                    displayUpgrades(); // Refresh the display
+                    filterAndDisplayUpgrades(); // Refresh the display
                 };
                 output.appendChild(card);
             });
@@ -200,6 +234,7 @@
             if (savedUpgrades) {
                 upgrades = JSON.parse(savedUpgrades);
                 clipboardPasted = true;
+                filterAndDisplayUpgrades();
             }
             if (savedSortOption) {
                 document.getElementById('sort-select').value = savedSortOption;
