@@ -128,7 +128,8 @@
                 upgrade.isAvailable &&
                 !upgrade.isExpired &&
                 upgrade.price > 0 &&
-                upgrade.profitPerHourDelta > 0
+                upgrade.profitPerHourDelta > 0 && 
+                (!upgrade.totalCooldownSeconds || upgrade.totalCooldownSeconds === 0)
             );
 
             // Display best card by ROI from all available cards
