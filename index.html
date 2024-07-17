@@ -20,11 +20,28 @@
         .card h3 {
             margin: 0;
         }
+        .paste-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: black;
+            background-color: #d6eaff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .paste-button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
     <h1>Hamster Kombat Upgrade Strategy</h1>
-    <button onclick="pasteClipboard()">Paste Data from Clipboard</button>
+    <button class="paste-button" onclick="pasteClipboard()">Paste</button>
     <div id="output"></div>
 
     <script>
@@ -53,10 +70,10 @@
                     // Display the sorted upgrades
                     displayUpgrades(sortedUpgrades);
                 } catch (e) {
-                    alert("Failed to parse data from clipboard. Please ensure it is in the correct JSON format.");
+                    console.log("Failed to parse data from clipboard. Please ensure it is in the correct JSON format.");
                 }
             }).catch(err => {
-                alert("Failed to read from clipboard: " + err);
+                console.log("Failed to read from clipboard: " + err);
             });
         }
 
@@ -77,6 +94,14 @@
                 output.appendChild(card);
             });
         }
+
+        // Attempt to trigger paste automatically
+        document.addEventListener('DOMContentLoaded', (event) => {
+            pasteClipboard();
+        });
+        window.addEventListener('focus', (event) => {
+            pasteClipboard();
+        });
     </script>
 </body>
 </html>
