@@ -45,23 +45,61 @@
             height: 100%;
             z-index: -1;
         }
+        .sort-select {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        #scroll-to-top {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            padding-top: 8px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 48px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s;
+        }
+        #scroll-to-top:hover {
+            background-color: #0056b3;
+        }
+        #scroll-to-top::before {
+            content: '⌃';
+        }
     </style>
 </head>
 <body>
     <h1>Hamster Kombat Upgrade Strategy</h1>
     <button class="paste-button" onclick="pasteClipboard()">Paste</button>
+    <select id="sort-select" class="sort-select" onchange="updateSort()">
+        <option value="roi">Sort by ROI</option>
+        <option value="roi_profit">Sort by ROI and Profit Increase</option>
+    </select>
     <div id="output"></div>
     <div class="background" onclick="pasteClipboard()"></div>
+    <button id="scroll-to-top" onclick="scrollToTop()"></button>
 
     <script>
+        let upgrades = [];
+
         function pasteClipboard() {
             navigator.clipboard.readText().then(text => {
                 try {
                     const data = JSON.parse(text);
-                    const upgrades = data.upgradesForBuy;
+                    upgrades = data.upgradesForBuy;
 
                     // Filter out upgrades that are expired, not available, or have a price or profit of 0
-                    const filteredUpgrades = upgrades.filter(upgrade =>
+                    upgrades = upgrades.filter(upgrade =>
                         upgrade.isAvailable &&
                         !upgrade.isExpired &&
                         upgrade.price > 0 &&
@@ -69,15 +107,15 @@
                     );
 
                     // Calculate ROI for each upgrade
-                    filteredUpgrades.forEach(upgrade => {
+                    upgrades.forEach(upgrade => {
                         upgrade.ROI = upgrade.profitPerHourDelta / upgrade.price;
                     });
 
-                    // Sort upgrades by ROI in descending order
-                    const sortedUpgrades = filteredUpgrades.sort((a, b) => b.ROI - a.ROI);
+                    // Save to localStorage
+                    localStorage.setItem('upgrades', JSON.stringify(upgrades));
 
-                    // Display the sorted upgrades
-                    displayUpgrades(sortedUpgrades);
+                    // Sort and display upgrades based on the selected option
+                    updateSort();
                 } catch (e) {
                     console.log("Failed to parse data from clipboard. Please ensure it is in the correct JSON format.");
                 }
@@ -86,11 +124,41 @@
             });
         }
 
-        function displayUpgrades(upgrades) {
+        function updateSort() {
+            const sortOption = document.getElementById('sort-select').value;
+            localStorage.setItem('sortOption', sortOption);
+
+            // Normalization
+            const maxProfitIncrease = Math.max(...upgrades.map(upgrade => upgrade.profitPerHourDelta));
+            const maxROI = Math.max(...upgrades.map(upgrade => upgrade.ROI));
+
+            if (sortOption === 'roi') {
+                upgrades.sort((a, b) => b.ROI - a.ROI);
+            } else if (sortOption === 'roi_profit') {
+                // Assign weights to ROI and Profit Per Hour Increase
+                const weightROI = 0.5;
+                const weightProfit = 0.5;
+
+                upgrades.forEach(upgrade => {
+                    // Normalize values
+                    const normalizedROI = upgrade.ROI / maxROI;
+                    const normalizedProfit = upgrade.profitPerHourDelta / maxProfitIncrease;
+
+                    // Calculate composite score
+                    upgrade.compositeScore = (weightROI * normalizedROI) + (weightProfit * normalizedProfit);
+                });
+
+                upgrades.sort((a, b) => b.compositeScore - a.compositeScore);
+            }
+
+            displayUpgrades();
+        }
+
+        function displayUpgrades() {
             const output = document.getElementById('output');
             output.innerHTML = ''; // Clear previous content
 
-            upgrades.forEach(upgrade => {
+            upgrades.forEach((upgrade, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.innerHTML = `
@@ -101,20 +169,41 @@
                     <p>Profit Per Hour Increase: ${upgrade.profitPerHourDelta}</p>
                     <p>ROI: ${upgrade.ROI.toFixed(6)}</p>
                 `;
-                card.onclick = (e) => {
-                    e.preventDefault();
-                    card.style.display = 'none';
+                card.onclick = (event) => {
+                    upgrades.splice(index, 1); // Remove the clicked upgrade from the list
+                    localStorage.setItem('upgrades', JSON.stringify(upgrades)); // Update localStorage
+                    updateSort();
+                    displayUpgrades(); // Refresh the display
                 };
                 output.appendChild(card);
             });
         }
 
-        // Attempt to trigger paste automatically
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.onscroll = function() {
+            const scrollToTopButton = document.getElementById('scroll-to-top');
+            if (document.documentElement.scrollTop > 300) {
+                scrollToTopButton.style.display = 'block';
+            } else {
+                scrollToTopButton.style.display = 'none';
+            }
+        };
+
+        // Load upgrades from localStorage on page load
         document.addEventListener('DOMContentLoaded', (event) => {
-            pasteClipboard();
-        });
-        window.addEventListener('focus', (event) => {
-            pasteClipboard();
+            const savedUpgrades = localStorage.getItem('upgrades');
+            const savedSortOption = localStorage.getItem('sortOption');
+            if (savedUpgrades) {
+                upgrades = JSON.parse(savedUpgrades);
+                clipboardPasted = true;
+            }
+            if (savedSortOption) {
+                document.getElementById('sort-select').value = savedSortOption;
+            }
+            updateSort();
         });
     </script>
 </body>
