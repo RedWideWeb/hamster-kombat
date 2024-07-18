@@ -129,7 +129,7 @@
         let upgrades = [];
         let filteredUpgrades = [];
         let statusTimeout = null;
-        const initialTime = Math.floor(Date.now() / 1000);
+        let initialTime = Math.floor(Date.now() / 1000);
 
         function showStatusMessage(message, className) {
             const statusElement = document.getElementById('fetch-status');
@@ -189,6 +189,7 @@
                         upgrade.initialCooldownSeconds = upgrade.cooldownSeconds;
                     });
                     // Save all cards to localStorage
+                    initialTime = Math.floor(Date.now() / 1000);
                     localStorage.setItem('upgrades', JSON.stringify(upgrades));
                     // Filter upgrades and update the display
                     filterAndDisplayUpgrades();
@@ -318,7 +319,13 @@
                     const hours = Math.floor(upgrade.cooldownSeconds / 3600);
                     const minutes = Math.floor((upgrade.cooldownSeconds % 3600) / 60);
                     const seconds = upgrade.cooldownSeconds % 60;
-                    cooldownText = `<p>Cooldown: ${hours}h ${minutes}m ${seconds}s</p>`;
+                    if (hours) {
+                        cooldownText = `<p>${hours}h ${minutes}m ${seconds}s</p>`;
+                    } else if (minutes) {
+                        cooldownText = `<p>${minutes}m ${seconds}s</p>`;
+                    } else {
+                        cooldownText = `<p>${seconds}s</p>`;
+                    }
                 }
                 card.innerHTML = `
                     <h3>${upgrade.name}</h3>
@@ -367,7 +374,7 @@
         window.onfocus = function() {
             fetchUpgrades();
         };
-        
+
         setInterval(updateCooldowns, 1000);
 
         // Load upgrades and sort option from localStorage on page load
