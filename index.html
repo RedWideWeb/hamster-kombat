@@ -256,7 +256,8 @@
                 ${bestCard.name} ${bestCard.section}<br>
                 + ${bestCard.profitPerHourDelta.toLocaleString('fr-FR')}<br>
                 ${bestCard.price.toLocaleString('fr-FR')}<br>
-                ROI: ${bestCard.ROI.toFixed(6)}`;
+                ROI: ${bestCard.ROI.toFixed(6)}`
+                ${bestCard.cooldownSeconds ? "\nAvailable in: " + bestCard.cooldownSeconds : '' }`;
         }
 
         function updateSort() {
