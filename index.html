@@ -265,7 +265,13 @@
                 const hours = Math.floor(bestCard.cooldownSeconds / 3600);
                 const minutes = Math.floor((bestCard.cooldownSeconds % 3600) / 60);
                 const seconds = bestCard.cooldownSeconds % 60;
-                cooldownText = `<p>Cooldown: ${hours}h ${minutes}m ${seconds}s</p>`;
+                if (hours) {
+                    cooldownText = `<p>${hours}h ${minutes}m ${seconds}s</p>`;
+                } else if (minutes) {
+                    cooldownText = `<p>${minutes}m ${seconds}s</p>`;
+                } else {
+                    cooldownText = `<p>${seconds}s</p>`;
+                }
             }
 
             document.getElementById('best-card-stats').innerHTML = `
