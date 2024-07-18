@@ -88,6 +88,7 @@
             margin-bottom: 20px;
         }
         #fetch-status {
+            display: none;
             margin-top: 10px;
             font-weight: bold;
         }
@@ -127,6 +128,8 @@
     <script>
         let upgrades = [];
         let filteredUpgrades = [];
+        let statusTimeout = null;
+        const initialTime = Math.floor(Date.now() / 1000);
 
         function showStatusMessage(message, className) {
             const statusElement = document.getElementById('fetch-status');
@@ -135,7 +138,10 @@
             statusElement.style.opacity = '100%';
 
             if (className !== 'fetching') {
-                setTimeout(() => {
+                if (statusTimeout) {
+                    clearTimeout(statusTimeout);
+                }
+                statusTimeout = setTimeout(() => {
                     statusElement.style.opacity = '0%';
                 }, 3000);
             }
@@ -180,6 +186,7 @@
                     // Calculate ROI for each upgrade
                     upgrades.forEach(upgrade => {
                         upgrade.ROI = upgrade.profitPerHourDelta / upgrade.price;
+                        upgrade.initialCooldownSeconds = upgrade.cooldownSeconds;
                     });
                     // Save all cards to localStorage
                     localStorage.setItem('upgrades', JSON.stringify(upgrades));
@@ -205,6 +212,7 @@
                     // Calculate ROI for each upgrade
                     upgrades.forEach(upgrade => {
                         upgrade.ROI = upgrade.profitPerHourDelta / upgrade.price;
+                        upgrade.initialCooldownSeconds = upgrade.cooldownSeconds;
                     });
 
                     // Save all cards to localStorage
@@ -225,7 +233,7 @@
                 upgrade.isAvailable &&
                 !upgrade.isExpired &&
                 upgrade.price > 0 &&
-                upgrade.profitPerHourDelta > 0 && 
+                upgrade.profitPerHourDelta > 0 &&
                 (!upgrade.cooldownSeconds || upgrade.cooldownSeconds === 0)
             );
 
@@ -243,21 +251,29 @@
                 upgrade.price > 0 &&
                 upgrade.profitPerHourDelta > 0
             );
-
+        
             if (availableUpgrades.length === 0) {
                 document.getElementById('best-card-stats').innerText = 'No cards available';
                 return;
             }
-
+        
             const bestCard = availableUpgrades.reduce((max, card) => card.ROI > max.ROI ? card : max, availableUpgrades[0]);
-
+        
+            let cooldownText = '';
+            if (bestCard.cooldownSeconds && bestCard.cooldownSeconds > 0) {
+                const hours = Math.floor(bestCard.cooldownSeconds / 3600);
+                const minutes = Math.floor((bestCard.cooldownSeconds % 3600) / 60);
+                const seconds = bestCard.cooldownSeconds % 60;
+                cooldownText = `<p>Cooldown: ${hours}h ${minutes}m ${seconds}s</p>`;
+            }
+        
             document.getElementById('best-card-stats').innerHTML = `
                 Best Card by ROI:<br><br>
                 ${bestCard.name} ${bestCard.section}<br>
                 + ${bestCard.profitPerHourDelta.toLocaleString('fr-FR')}<br>
                 ${bestCard.price.toLocaleString('fr-FR')}<br>
-                ROI: ${bestCard.ROI.toFixed(6)}`
-                ${bestCard.cooldownSeconds ? "\nAvailable in: " + bestCard.cooldownSeconds : '' }`;
+                ROI: ${bestCard.ROI.toFixed(6)}<br>
+                ${cooldownText}`;
         }
 
         function updateSort() {
@@ -297,12 +313,20 @@
             filteredUpgrades.forEach((upgrade, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
+                let cooldownText = '';
+                if (upgrade.cooldownSeconds && upgrade.cooldownSeconds > 0) {
+                    const hours = Math.floor(upgrade.cooldownSeconds / 3600);
+                    const minutes = Math.floor((upgrade.cooldownSeconds % 3600) / 60);
+                    const seconds = upgrade.cooldownSeconds % 60;
+                    cooldownText = `<p>Cooldown: ${hours}h ${minutes}m ${seconds}s</p>`;
+                }
                 card.innerHTML = `
                     <h3>${upgrade.name}</h3>
                     <p>${upgrade.section}</p>
                     <p>+ ${upgrade.profitPerHourDelta.toLocaleString('fr-FR')}</p>
                     <p>${upgrade.price.toLocaleString('fr-FR')}</p>
                     <span>ROI: ${upgrade.ROI.toFixed(6)}</span>
+                    ${cooldownText}
                 `;
                 card.onclick = (event) => {
                     upgrades.splice(upgrades.indexOf(upgrade), 1); // Remove the clicked upgrade from the list
@@ -311,6 +335,20 @@
                 };
                 output.appendChild(card);
             });
+        }
+
+        function updateCooldowns() {
+            const currentTime = Math.floor(Date.now() / 1000);
+            const timeDelta = currentTime - initialTime;
+
+            upgrades.forEach(upgrade => {
+                if (upgrade.initialCooldownSeconds && upgrade.initialCooldownSeconds > 0) {
+                    upgrade.cooldownSeconds = Math.max(0, upgrade.initialCooldownSeconds - timeDelta);
+                }
+            });
+
+            // Filter and display updates with updated cooldowns
+            filterAndDisplayUpgrades();
         }
 
         function scrollToTop() {
