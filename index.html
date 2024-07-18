@@ -251,14 +251,14 @@
                 upgrade.price > 0 &&
                 upgrade.profitPerHourDelta > 0
             );
-        
+
             if (availableUpgrades.length === 0) {
                 document.getElementById('best-card-stats').innerText = 'No cards available';
                 return;
             }
-        
+
             const bestCard = availableUpgrades.reduce((max, card) => card.ROI > max.ROI ? card : max, availableUpgrades[0]);
-        
+
             let cooldownText = '';
             if (bestCard.cooldownSeconds && bestCard.cooldownSeconds > 0) {
                 const hours = Math.floor(bestCard.cooldownSeconds / 3600);
@@ -266,7 +266,7 @@
                 const seconds = bestCard.cooldownSeconds % 60;
                 cooldownText = `<p>Cooldown: ${hours}h ${minutes}m ${seconds}s</p>`;
             }
-        
+
             document.getElementById('best-card-stats').innerHTML = `
                 Best Card by ROI:<br><br>
                 ${bestCard.name} ${bestCard.section}<br>
@@ -367,6 +367,8 @@
         window.onfocus = function() {
             fetchUpgrades();
         };
+        
+        setInterval(updateCooldowns, 1000);
 
         // Load upgrades and sort option from localStorage on page load
         document.addEventListener('DOMContentLoaded', (event) => {
@@ -385,6 +387,9 @@
 
             if (savedUpgrades) {
                 upgrades = JSON.parse(savedUpgrades);
+                upgrades.forEach(upgrade => {
+                    upgrade.initialCooldownSeconds = upgrade.cooldownSeconds;
+                });
                 filterAndDisplayUpgrades();
             }
 
