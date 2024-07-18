@@ -133,11 +133,11 @@
             const statusElement = document.getElementById('fetch-status');
             statusElement.textContent = message;
             statusElement.className = className;
-            statusElement.style.display = 'block';
+            statusElement.style.opacity = '100%';
 
             if (className !== 'fetching') {
                 setTimeout(() => {
-                    statusElement.style.display = 'none';
+                    statusElement.style.opacity = '0%';
                 }, 3000);
             }
         }
